@@ -6,8 +6,8 @@
 # What does this plugin do?
 This plugin generates a save of your .blend file which transfers over blender collections (and their Godot-related flags) to Godot.
 
-- -noimp flag works with collections.
-- you can use -imp flag on an object to negate a -noimp flag on a parent collection. -imp flag can also be chained with one more flag: -imp-colonly will always get imported with a -colonly flag
+- -noimp & -col flag works with collections.
+- you can use -imp/nocol flag on an object to negate a -noimp/col flag on a parent collection. -imp/col flag can also be chained with one more flag: -imp-colonly will get imported, with a -colonly flag
 
 # How to use
 1. Load the .py from [releases](https://github.com/SwatDoge/DQBCTEGS/tags) in blender as a plugin.
