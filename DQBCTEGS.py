@@ -15,7 +15,6 @@ from bpy.app.handlers import persistent
 
 new_file_prefix = "godot_"
 empties = []
-plugin_loaded = False
 
 # creates a new empty for each collection
 def modify_collection(parent, depth=0):
@@ -47,41 +46,64 @@ def modify_collection(parent, depth=0):
 
 # Goes through a parent array, renames parents and children.
 def apply_imp_flag_to_hierarchy(parent):
-    parentPaths = get_paths_of_imp_flagged_children(parent)
-    highestNoImpParents = []
+    parentPaths = get_paths_of_flagged_children("-imp", parent)
         
     for parentPath in parentPaths:
         for parent in parentPath:
             if "-noimp" in parent.name:
-                convert_directory_to_imp(parent)
+                convert_directory_to_flag("-noimp", "-imp", parent)
                 break;
 
-def convert_directory_to_imp(parent):
-    if "-noimp" in parent.name:
-        parent.name = parent.name.replace("-noimp", "");
+# Gets all collections with the -col flag and applies col to all its subchildren.
+def apply_col_flag_to_hierarchy(parent):
+    collidable_collections = get_flagged_collections("-col", parent)
+
+    for collection in collidable_collections:
+        print(collection)
+        convert_directory_to_flag("-col", "-nocol", collection)
+
+# Take a directory and apply a flag to all subchildren.
+def convert_directory_to_flag(flag, flagInverse, parent):
+    if flag in parent.name:
+        parent.name = parent.name.replace(flag, "");
     
     for child in parent.children:
-        convert_directory_to_imp(child)
+        convert_directory_to_flag(flag, flagInverse, child)
     for object in parent.objects:
-        if "-imp" in object.name:
-            object.name = object.name.replace("-imp", "");
-        elif "-noimp" not in object.name:
-            object.name = object.name + "-noimp"
+        print(object.name)
+        print(flag not in object.name)
+        if flagInverse in object.name:
+            object.name = object.name.replace(flagInverse, "");
+        elif flag not in object.name:
+            object.name = object.name + flag
+            print("renamed to " + object.name)
 
+# Returns "paths" leading to a collection with a specified flag.
+def get_flagged_collections(flag, parent):
+    impPathArray = []
+    
+    # get discovered paths of the children.
+    for child in parent.children:
+        impPathArray = [*impPathArray, *get_flagged_collections(flag, child)]
 
-# Returns a arrays of parents of a child with the -imp flag.
-def get_paths_of_imp_flagged_children(parent, pathArray = []):
+    if flag in parent.name:
+        impPathArray = [*impPathArray, parent]
+
+    return impPathArray
+
+# Returns "paths" leading to a child with a specified flag.
+def get_paths_of_flagged_children(flag, parent, pathArray = []):
     pathArray = [*pathArray, parent]
     impPathArray = []
     
     # get discovered paths of the children
     for child in parent.children:
-        impPathArray = [*impPathArray, *get_paths_of_imp_flagged_children(child, pathArray)]
+        impPathArray = [*impPathArray, *get_paths_of_flagged_children(flag, child, pathArray)]
     
     # as child, if theres -imp return path array.
     if parent is not bpy.context.scene.collection:        
         for object in parent.objects:
-            if "-imp" in object.name:
+            if flag in object.name:
                 impPathArray = [*impPathArray, pathArray]
 
     return impPathArray
@@ -97,6 +119,7 @@ def save_handler(scene):
     bpy.ops.wm.save_as_mainfile(filepath=blender_filepath, copy=True)
     # modify this version and save it to godot
     scene_col = bpy.context.scene.collection
+    apply_col_flag_to_hierarchy(scene_col)
     apply_imp_flag_to_hierarchy(scene_col)
     modify_collection(scene_col)
     
@@ -104,17 +127,14 @@ def save_handler(scene):
     bpy.ops.wm.save_as_mainfile(filepath=godot_filepath, copy=True)
     bpy.ops.wm.open_mainfile(filepath=blender_filepath)
     
-    print("clear")
     empties.clear()
     bpy.app.handlers.save_post.append(save_handler)
 
 def register():
-    print("register")
     bpy.app.handlers.save_post.clear()
     bpy.app.handlers.save_post.append(save_handler)
 
 def unregister():
-    print("unregister")
     bpy.app.handlers.save_post.clear()
     
 if __name__ == "__main__":
